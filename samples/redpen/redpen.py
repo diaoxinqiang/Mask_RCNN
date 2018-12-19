@@ -70,7 +70,7 @@ class RedpenConfig(Config):
     IMAGES_PER_GPU = 1
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 1  # Background + redpen
+    NUM_CLASSES = 1 + 2  # Background + right symbol + wrong symbol
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
@@ -91,8 +91,8 @@ class RedpenDataset(utils.Dataset):
         subset: Subset to load: train or val
         """
         # Add classes. We have only one class to add.
-        self.add_class("right", 1, "right")
-
+        self.add_class("redpen", 0, "right")
+        self.add_class("redpen", 1, "wrong")
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
@@ -102,7 +102,7 @@ class RedpenDataset(utils.Dataset):
         # { 'filename': '28503151_5b5b7ec140_b.jpg',
         #   'regions': {
         #       '0': {
-        #           'region_attributes': {},
+        #           'region_attributes': {name:'right'},
         #           'shape_attributes': {
         #               'all_points_x': [...],
         #               'all_points_y': [...],
@@ -128,9 +128,10 @@ class RedpenDataset(utils.Dataset):
             # The if condition is needed to support VIA versions 1.x and 2.x.
             if type(a['regions']) is dict:
                 polygons = [r['shape_attributes'] for r in a['regions'].values()]
+                names = [r['region_attributes'] for r in a['regions'].values()]
             else:
                 polygons = [r['shape_attributes'] for r in a['regions']]
-
+                names = [r['region_attributes'] for r in a['regions']]
                 # load_mask() needs the image size to convert polygons to masks.
             # Unfortunately, VIA doesn't include it in JSON, so we must read
             # the image. This is only managable since the dataset is tiny.
@@ -139,11 +140,12 @@ class RedpenDataset(utils.Dataset):
             height, width = image.shape[:2]
 
             self.add_image(
-                "right",
+                "redpen",
                 image_id=a['filename'],  # use file name as a unique image id
                 path=image_path,
                 width=width, height=height,
-                polygons=polygons)
+                polygons=polygons,
+                names=names)
 
     def load_mask(self, image_id):
         """Generate instance masks for an image.
@@ -154,7 +156,7 @@ class RedpenDataset(utils.Dataset):
         """
         # If not a redpen dataset image, delegate to parent class.
         image_info = self.image_info[image_id]
-        if image_info["source"] != "right":
+        if image_info["source"] != "redpen":
             return super(self.__class__, self).load_mask(image_id)
 
         # Convert polygons to a bitmap mask of shape
@@ -167,9 +169,21 @@ class RedpenDataset(utils.Dataset):
             rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
             mask[rr, cc, i] = 1
 
+        class_names = info["names"]
+        # Assign class_ids by reading class_names
+        class_ids = np.zeros([len(info["polygons"])])
+        # In the surgery dataset, pictures are labeled with name 'a' and 'r' representing arm and ring.
+        for i, p in enumerate(class_names):
+            # "name" is the attributes name decided when labeling, etc. 'region_attributes': {name:'a'}
+            if p['name'] == 'right':
+                class_ids[i] = 0
+            elif p['name'] == 'wrong':
+                class_ids[i] = 1
+            # assert code here to extend to other labels
+        class_ids = class_ids.astype(int)
         # Return mask, and array of class IDs of each instance. Since we have
         # one class ID only, we return an array of 1s
-        return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+        return mask.astype(np.bool), class_ids
 
     def image_reference(self, image_id):
         """Return the path of the image."""
