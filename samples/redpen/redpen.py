@@ -63,11 +63,13 @@ class RedpenConfig(Config):
     Derives from the base Config class and overrides some values.
     """
     # Give the configuration a recognizable name
-    NAME = "right"
+    NAME = "redpen"
+    # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
+    GPU_COUNT = 1
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 1
+    IMAGES_PER_GPU = 4
 
     # Number of classes (including background)
     NUM_CLASSES = 1 + 2  # Background + right symbol + wrong symbol
@@ -91,8 +93,8 @@ class RedpenDataset(utils.Dataset):
         subset: Subset to load: train or val
         """
         # Add classes. We have only one class to add.
-        self.add_class("redpen", 0, "right")
-        self.add_class("redpen", 1, "wrong")
+        self.add_class(RedpenConfig.NAME, 1, "right")
+        self.add_class(RedpenConfig.NAME, 2, "wrong")
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
@@ -140,7 +142,7 @@ class RedpenDataset(utils.Dataset):
             height, width = image.shape[:2]
 
             self.add_image(
-                "redpen",
+                RedpenConfig.NAME,
                 image_id=a['filename'],  # use file name as a unique image id
                 path=image_path,
                 width=width, height=height,
@@ -156,7 +158,7 @@ class RedpenDataset(utils.Dataset):
         """
         # If not a redpen dataset image, delegate to parent class.
         image_info = self.image_info[image_id]
-        if image_info["source"] != "redpen":
+        if image_info["source"] != RedpenConfig.NAME:
             return super(self.__class__, self).load_mask(image_id)
 
         # Convert polygons to a bitmap mask of shape
@@ -176,9 +178,9 @@ class RedpenDataset(utils.Dataset):
         for i, p in enumerate(class_names):
             # "name" is the attributes name decided when labeling, etc. 'region_attributes': {name:'a'}
             if p['name'] == 'right':
-                class_ids[i] = 0
-            elif p['name'] == 'wrong':
                 class_ids[i] = 1
+            elif p['name'] == 'wrong':
+                class_ids[i] = 2
             # assert code here to extend to other labels
         class_ids = class_ids.astype(int)
         # Return mask, and array of class IDs of each instance. Since we have
@@ -188,7 +190,7 @@ class RedpenDataset(utils.Dataset):
     def image_reference(self, image_id):
         """Return the path of the image."""
         info = self.image_info[image_id]
-        if info["source"] == "right":
+        if info["source"] == RedpenConfig.NAME:
             return info["path"]
         else:
             super(self.__class__, self).image_reference(image_id)
@@ -213,7 +215,7 @@ def train(model):
     print("Training network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=30,
+                epochs=RedpenConfig.STEPS_PER_EPOCH,
                 layers='heads')
 
 
