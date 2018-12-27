@@ -69,10 +69,13 @@ class RedpenConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 4
+    IMAGES_PER_GPU = 2
+    # RPN_ANCHOR_RATIOS = [0.5, 1, 2]
+    RPN_ANCHOR_SCALES = (16, 32, 64, 128)
 
+    LEARNING_RATE = 0.0001
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 2  # Background + right symbol + wrong symbol
+    NUM_CLASSES = 1 + 1  # Background + wrong symbol
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
@@ -93,8 +96,8 @@ class RedpenDataset(utils.Dataset):
         subset: Subset to load: train or val
         """
         # Add classes. We have only one class to add.
-        self.add_class(RedpenConfig.NAME, 1, "right")
-        self.add_class(RedpenConfig.NAME, 2, "wrong")
+        # self.add_class(RedpenConfig.NAME, 1, "right")
+        self.add_class(RedpenConfig.NAME, 1, "wrong")
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
@@ -177,10 +180,10 @@ class RedpenDataset(utils.Dataset):
         # In the surgery dataset, pictures are labeled with name 'a' and 'r' representing arm and ring.
         for i, p in enumerate(class_names):
             # "name" is the attributes name decided when labeling, etc. 'region_attributes': {name:'a'}
-            if p['name'] == 'right':
+            if p['name'] == 'wrong':
                 class_ids[i] = 1
-            elif p['name'] == 'wrong':
-                class_ids[i] = 2
+            # if p['name'] == 'wrong':
+            #     class_ids[i] = 2
             # assert code here to extend to other labels
         class_ids = class_ids.astype(int)
         # Return mask, and array of class IDs of each instance. Since we have
