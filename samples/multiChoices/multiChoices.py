@@ -72,7 +72,7 @@ class multiChoicesConfig(Config):
     IMAGES_PER_GPU = 2
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 1  # Background + bracket symbol
+    NUM_CLASSES = 1 + 3  # Background + bracket symbol + D option + question number
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
@@ -94,7 +94,9 @@ class multiChoicesDataset(utils.Dataset):
         """
         # Add classes. We have only one class to add.
         self.add_class(multiChoicesConfig.NAME, 1, "bracket")
-        # self.add_class(multiChoicesConfig.NAME, 2, "wrong")
+        self.add_class(multiChoicesConfig.NAME, 2, "d_option")
+        self.add_class(multiChoicesConfig.NAME, 3, "question_number")
+
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
@@ -115,7 +117,7 @@ class multiChoicesDataset(utils.Dataset):
         # }
         # We mostly care about the x and y coordinates of each region
         # Note: In VIA 2.0, regions was changed from a dict to a list.
-        annotations = json.load(open(os.path.join(dataset_dir, "via_region_data_0.json")))
+        annotations = json.load(open(os.path.join(dataset_dir, "via_region_data_polygon.json")))
         annotations = list(annotations.values())  # don't need the dict keys
 
         # The VIA tool saves images in the JSON even if they don't have any
@@ -179,8 +181,10 @@ class multiChoicesDataset(utils.Dataset):
             # "name" is the attributes name decided when labeling, etc. 'region_attributes': {name:'a'}
             if p['name'] == 'bracket':
                 class_ids[i] = 1
-            elif p['name'] == 'wrong':
+            elif p['name'] == 'd_option':
                 class_ids[i] = 2
+            elif p['name'] == 'question_number':
+                class_ids[i] = 3
             # assert code here to extend to other labels
         class_ids = class_ids.astype(int)
         # Return mask, and array of class IDs of each instance. Since we have

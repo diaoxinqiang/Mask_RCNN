@@ -63,7 +63,7 @@ def process():
     img_list = glob.glob(os.path.join(img_dir_path, '*.jp*'))
     print('处理图片数量:{}'.format(len(img_list)))
 
-    annotations = json.load(open(os.path.join(img_dir_path, "via_region_data.json")))
+    annotations = json.load(open(os.path.join(img_dir_path, "via_region_data_rect_0.json")))
     print(len(annotations))
 
     for annotation in annotations.values():
@@ -71,7 +71,12 @@ def process():
         for region in regions:
             shape_attributes = region['shape_attributes']
             region_attributes = region['region_attributes']
-            region_attributes['name'] = 'bracket'
+            region_name = region_attributes['name']
+            if region_name == 'n':
+                region_attributes['name'] = 'question_number'
+            elif region_name == 'd':
+                region_attributes['name'] = 'd_option'
+
             shape_attributes['name'] = 'polygon'
             x = shape_attributes['x']
             y = shape_attributes['y']
@@ -87,30 +92,31 @@ def process():
             shape_attributes['all_points_y'].extend(yPositions)
 
             shape_attributes['all_points_x'].append(x + width)
-            shape_attributes['all_points_y'].append(y + np.random.randint(-3, 3))
+            shape_attributes['all_points_y'].append(y + np.random.randint(0, 3))
             xPositions, yPositions = getPositions(x + width, y, y, y + height)
             shape_attributes['all_points_x'].extend(xPositions)
             shape_attributes['all_points_y'].extend(yPositions)
 
-            shape_attributes['all_points_x'].append(x + width + np.random.randint(-3, 3))
-            shape_attributes['all_points_y'].append(y + height + np.random.randint(-3, 3))
+            shape_attributes['all_points_x'].append(x + width + np.random.randint(0, 3))
+            shape_attributes['all_points_y'].append(y + height + np.random.randint(0, 3))
             xPositions, yPositions = getPositions(x, y + height, x, x + width)
             shape_attributes['all_points_x'].extend(reversed(xPositions))
             shape_attributes['all_points_y'].extend(reversed(yPositions))
 
-            shape_attributes['all_points_x'].append(x + np.random.randint(-3, 3))
-            shape_attributes['all_points_y'].append(y + height + np.random.randint(-3, 3))
+            shape_attributes['all_points_x'].append(x + np.random.randint(0, 3))
+            shape_attributes['all_points_y'].append(y + height + np.random.randint(0, 3))
 
             xPositions, yPositions = getPositions(x, y, y, y + height)
             shape_attributes['all_points_x'].extend(reversed(xPositions))
             shape_attributes['all_points_y'].extend(reversed(yPositions))
 
-    save_json(os.path.join(img_dir_path, 'via_region_data_0.json'), annotations)
+    save_json(os.path.join(img_dir_path, 'via_region_data_polygon.json'), annotations)
 
 
 if __name__ == '__main__':
-    img_dir_path = './test'
-    img_list = glob.glob(os.path.join(img_dir_path, '*.jp*'))
-    print('处理图片数量:{}'.format(len(img_list)))
-    for image_path in img_list:
-        to_gray_image(image_path, os.path.join('./test', 'test'))
+    process()
+    # img_dir_path = './test'
+    # img_list = glob.glob(os.path.join(img_dir_path, '*.jp*'))
+    # print('处理图片数量:{}'.format(len(img_list)))
+    # for image_path in img_list:
+    #     to_gray_image(image_path, os.path.join('./test', 'test'))
